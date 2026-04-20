@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1776642176 source:c:\users\andje\documents\git\bp1-projekat\baze1\isplata.c
+1776643512 source:c:\users\andje\documents\git\bp1-projekat\baze1\isplata.c
 	"isplata.h"
 	"radnik.h"
 	"utils.h"
@@ -14,7 +14,7 @@
 
 1776639859 c:\users\andje\documents\git\bp1-projekat\baze1\utils.h
 
-1776642303 source:c:\users\andje\documents\git\bp1-projekat\baze1\radnik.c
+1776643425 source:c:\users\andje\documents\git\bp1-projekat\baze1\radnik.c
 	"radnik.h"
 	"utils.h"
 	"isplata.h"
@@ -26,10 +26,23 @@
 	"utils.h"
 	<stdio.h>
 
-1776639951 source:c:\users\andje\documents\git\bp1-projekat\baze1\main.c
+1776645899 source:c:\users\andje\documents\git\bp1-projekat\baze1\main.c
 	<stdio.h>
 	<string.h>
 	"radnik.h"
 	"isplata.h"
 	"utils.h"
+	"agregat.h"
+
+1776646996 c:\users\andje\documents\git\bp1-projekat\baze1\agregat.h
+	<stdio.h>
+
+1776645952 source:c:\users\andje\documents\git\bp1-projekat\baze1\agregat.c
+	"agregat.h"
+	"radnik.h"
+	"utils.h"
+	"isplata.h"
+	<string.h>
+	<stdlib.h>
+	<stdio.h>
 

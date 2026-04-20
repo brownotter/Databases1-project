@@ -4,6 +4,7 @@
 #include "radnik.h"
 #include "isplata.h"
 #include "utils.h"
+#include "agregat.h"
 
 
 int main() {
@@ -17,6 +18,7 @@ int main() {
         printf("\n--- GLAVNI MENI ---\n");
         printf("1. Radnici\n");
         printf("2. Isplate\n");
+        printf("3. Agregirani podaci\n");
         printf("0. Izlaz\n");
         printf("Izbor: ");
         scanf("%d", &izbor);
@@ -28,6 +30,9 @@ int main() {
                 break;
             case 2:
                 meni_isplata();
+                break;
+            case 3:
+                meni_agregat();
                 break;
         }
 
