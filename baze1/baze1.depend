@@ -1,31 +1,32 @@
 # depslib dependency file v1.0
-1770495167 source:c:\users\andje\documents\git\bp1-projekat\baze1\isplata.c
+1776642176 source:c:\users\andje\documents\git\bp1-projekat\baze1\isplata.c
 	"isplata.h"
 	"radnik.h"
 	"utils.h"
 	<string.h>
 	<stdlib.h>
 
-1770495097 c:\users\andje\documents\git\bp1-projekat\baze1\isplata.h
+1776642163 c:\users\andje\documents\git\bp1-projekat\baze1\isplata.h
 	<stdio.h>
 
-1770495362 c:\users\andje\documents\git\bp1-projekat\baze1\radnik.h
+1776641080 c:\users\andje\documents\git\bp1-projekat\baze1\radnik.h
 	<stdio.h>
 
-1770495261 c:\users\andje\documents\git\bp1-projekat\baze1\utils.h
+1776639859 c:\users\andje\documents\git\bp1-projekat\baze1\utils.h
 
-1770495369 source:c:\users\andje\documents\git\bp1-projekat\baze1\radnik.c
+1776642303 source:c:\users\andje\documents\git\bp1-projekat\baze1\radnik.c
 	"radnik.h"
 	"utils.h"
 	"isplata.h"
 	<string.h>
 	<stdlib.h>
+	<stdio.h>
 
-1770495296 source:c:\users\andje\documents\git\bp1-projekat\baze1\utils.c
+1776639874 source:c:\users\andje\documents\git\bp1-projekat\baze1\utils.c
 	"utils.h"
 	<stdio.h>
 
-1770495564 source:c:\users\andje\documents\git\bp1-projekat\baze1\main.c
+1776639951 source:c:\users\andje\documents\git\bp1-projekat\baze1\main.c
 	<stdio.h>
 	<string.h>
 	"radnik.h"

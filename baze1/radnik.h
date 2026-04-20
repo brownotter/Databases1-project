@@ -15,29 +15,22 @@ typedef struct {
     float premija;
 } Radnik;
 
-/* Kreiranje prazne serijske datoteke */
-void kreiraj_praznu_serijsku_radnik_datoteku(const char* filename);
+typedef struct {
+    Radnik slogovi[FAKTOR_BLOKIRANJA_RADNIK];
+} BlokRadnik;
 
-/* Unos novog radnika */
-void unos_radnika(const char* filename);
+void meni_radnik();
 
-/* Prikaz radnika po mbr */
-void prikaz_radnika_po_mbr(const char* filename, int mbr);
+void kreiraj_praznu_datoteku_radnik(const char*);
 
-/* Prikaz radnika sa bonusima preko 2000 */
-void radnici_sa_bonusima(const char* radnik_file, const char* isplata_file);
+void unos_radnika(const char*);
 
-/* Modifikacija radnika */
-void izmeni_radnika(const char* filename, int mbr);
+void ispis_radnika(const char*);
 
-/* Provera postojanja radnika */
-int postoji_radnik(const char* filename, int mbr);
+void prikaz_radnika(const char*, int);
 
-/* Debug ispis */
-void ispis_radnika(const char* filename);
+void modifikacija_radnika(const char*, int);
 
-//bonus
-void radnici_sa_bonusima(const char* radnik_file, const char* isplata_file);
-
+void uslov_bonus(const char* radnici_fajl, const char* isplate_fajl);
 
 #endif // RADNIK_H_INCLUDED

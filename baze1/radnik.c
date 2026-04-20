@@ -3,307 +3,374 @@
 #include "isplata.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
-void kreiraj_praznu_serijsku_radnik_datoteku(const char* filename) {
-    FILE* f = fopen(filename, "wb");
-    if (!f) {
-        printf("Greska pri kreiranju datoteke.\n");
-        return;
-    }
+void meni_radnik() {
+    int izbor;
+    char naziv_fajla[64] = "radnici.bin";
 
-    Radnik blok[FAKTOR_BLOKIRANJA_RADNIK] = {0};
-    blok[0].mbr = -1;   // EOF marker
+    do {
+        printf("\n--- MENI RADNIK ---\n");
+        printf("Aktivna datoteka: %s\n", naziv_fajla);
+        printf("1. Izaberi naziv fajla\n");
+        printf("2. Kreiraj praznu datoteku (f=5)\n");
+        printf("3. Unos radnika\n");
+        printf("4. Prikaz po MBR\n");
+        printf("5. Modifikacija radnika\n");
+        printf("6. DEBUG ispis svih\n");
+        printf("7. Uslov: BONUS > 2000\n");
+        printf("0. Nazad\n");
+        printf("Izbor: ");
 
-    fwrite(blok, sizeof(Radnik), FAKTOR_BLOKIRANJA_RADNIK, f);
-    fclose(f);
+        scanf("%d", &izbor);
+        ocisti_bafer();
 
-    printf("Datoteka \"%s\" uspesno kreirana.\n", filename);
+        switch (izbor) {
+            case 1:
+                printf("Unesite ime fajla: ");
+                fgets(naziv_fajla, sizeof(naziv_fajla), stdin);
+                naziv_fajla[strcspn(naziv_fajla, "\n")] = 0;
+                break;
+
+            case 2:
+                kreiraj_praznu_datoteku_radnik(naziv_fajla);
+                break;
+
+            case 3:
+                unos_radnika(naziv_fajla);
+                break;
+
+            case 4: {
+                int mbr;
+                printf("Unesite mbr: ");
+                scanf("%d", &mbr);
+                ocisti_bafer();
+                prikaz_radnika(naziv_fajla, mbr);
+                break;
+            }
+
+            case 5: {
+                int mbr;
+                printf("Unesite mbr: ");
+                scanf("%d", &mbr);
+                ocisti_bafer();
+                modifikacija_radnika(naziv_fajla, mbr);
+                break;
+            }
+
+            case 6:
+                ispis_radnika(naziv_fajla);
+                break;
+
+            case 7: {
+                char fajl_isplate[64];
+                printf("Unesite ime fajla sa isplatama: ");
+                fgets(fajl_isplate, sizeof(fajl_isplate), stdin);
+                fajl_isplate[strcspn(fajl_isplate, "\n")] = 0;
+                uslov_bonus(naziv_fajla, fajl_isplate);
+                break;
+            }
+
+            case 0:
+                printf("Nazad.\n");
+                break;
+
+            default:
+                printf("Nepoznat izbor!\n");
+        }
+
+    } while (izbor != 0);
 }
 
+
 void unos_radnika(const char* filename) {
-    Radnik novi;
-
-    printf("Unesite MBR: ");
-    scanf("%d", &novi.mbr);
-    ocisti_bafer();
-
-    if (novi.mbr <= 0) {
-        printf("MBR mora biti pozitivan.\n");
+    FILE* f = fopen(filename, "rb+");
+    if (!f) {
+        printf("Greska pri otvaranju fajla!\n");
         return;
     }
 
-    printf("Unesite ime: ");
+    Radnik novi;
+
+    // --- UNOS PODATAKA ---
+    printf("Unesite mbr: ");
+    scanf("%d", &novi.mbr); ocisti_bafer();
+
+    printf("Ime: ");
     fgets(novi.ime, MAX_IME, stdin);
     novi.ime[strcspn(novi.ime, "\n")] = 0;
 
-    printf("Unesite prezime: ");
+    printf("Prezime: ");
     fgets(novi.prezime, MAX_PREZIME, stdin);
     novi.prezime[strcspn(novi.prezime, "\n")] = 0;
 
-    if (!provera_ascii(novi.ime) || !provera_ascii(novi.prezime)) {
-        printf("Dozvoljeni su samo ASCII karakteri.\n");
-        return;
-    }
+    printf("Plata: ");
+    scanf("%f", &novi.plata); ocisti_bafer();
 
-    printf("Unesite platu: ");
-    scanf("%f", &novi.plata);
-    ocisti_bafer();
+    printf("Premija: ");
+    scanf("%f", &novi.premija); ocisti_bafer();
 
-    printf("Unesite premiju: ");
-    scanf("%f", &novi.premija);
-    ocisti_bafer();
+    // --- RAD SA BLOKOVIMA ---
+    BlokRadnik blok;
+    int blok_index = 0;
 
-    FILE* f = fopen(filename, "rb+");
-    if (!f) {
-        printf("Datoteka ne postoji.\n");
-        return;
-    }
-
-    Radnik blok[FAKTOR_BLOKIRANJA_RADNIK];
-    int blok_broj = 0;
-
-    while (fread(blok, sizeof(Radnik), FAKTOR_BLOKIRANJA_RADNIK, f)
-           == FAKTOR_BLOKIRANJA_RADNIK) {
+    while (fread(&blok, sizeof(BlokRadnik), 1, f) == 1) {
 
         for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++) {
 
-            if (blok[i].mbr == novi.mbr) {
-                printf("Radnik sa datim MBR vec postoji.\n");
+            //  DUPLIKAT
+            if (blok.slogovi[i].mbr == novi.mbr) {
+                printf("Radnik vec postoji!\n");
                 fclose(f);
                 return;
             }
 
-            if (blok[i].mbr == -1) {
-                blok[i] = novi;
+            //  EOF = TU UPISUJEMO
+            if (blok.slogovi[i].mbr == -1) {
 
-                if (i < FAKTOR_BLOKIRANJA_RADNIK - 1)
-                    blok[i + 1].mbr = -1;
+                blok.slogovi[i] = novi;
 
-                fseek(f, blok_broj * sizeof(blok), SEEK_SET);
-                fwrite(blok, sizeof(Radnik), FAKTOR_BLOKIRANJA_RADNIK, f);
-
-                if (i == FAKTOR_BLOKIRANJA_RADNIK - 1) {
-                    Radnik novi_blok[FAKTOR_BLOKIRANJA_RADNIK] = {0};
-                    novi_blok[0].mbr = -1;
-                    fwrite(novi_blok, sizeof(Radnik), FAKTOR_BLOKIRANJA_RADNIK, f);
+                // postavi novi EOF
+                if (i < FAKTOR_BLOKIRANJA_RADNIK - 1) {
+                    blok.slogovi[i + 1].mbr = -1;
                 }
 
-                printf("Radnik upisan (blok %d, pozicija %d).\n", blok_broj, i);
+                // vrati se nazad i upisi blok
+                fseek(f, -sizeof(BlokRadnik), SEEK_CUR);
+                fwrite(&blok, sizeof(BlokRadnik), 1, f);
+
+                // ako je bio poslednji u bloku - dodaj novi blok
+                if (i == FAKTOR_BLOKIRANJA_RADNIK - 1) {
+                    BlokRadnik novi_blok = {0};
+                    novi_blok.slogovi[0].mbr = -1;
+                    fwrite(&novi_blok, sizeof(BlokRadnik), 1, f);
+                }
+
+                printf("Upisan radnik (blok %d, pozicija %d)\n", blok_index, i);
                 fclose(f);
                 return;
             }
         }
-        blok_broj++;
+
+        blok_index++;
     }
 
+    printf("Greska: nije pronadjen EOF!\n");
     fclose(f);
 }
-
-void prikaz_radnika_po_mbr(const char* filename, int mbr) {
-    FILE* f = fopen(filename, "rb");
-    if (!f) return;
-
-    Radnik blok[FAKTOR_BLOKIRANJA_RADNIK];
-    int blok_broj = 0;
-
-    while (fread(blok, sizeof(Radnik), FAKTOR_BLOKIRANJA_RADNIK, f)
-           == FAKTOR_BLOKIRANJA_RADNIK) {
-
-        for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++) {
-
-            if (blok[i].mbr == -1) {
-                printf("Radnik nije pronadjen.\n");
-                fclose(f);
-                return;
-            }
-
-            if (blok[i].mbr == mbr) {
-                printf("Ime: %s\nPrezime: %s\nPlata: %.2f\nPremija: %.2f\n",
-                       blok[i].ime, blok[i].prezime,
-                       blok[i].plata, blok[i].premija);
-                printf("Blok: %d, Pozicija: %d\n", blok_broj, i);
-                fclose(f);
-                return;
-            }
-        }
-        blok_broj++;
-    }
-    fclose(f);
-}
-
-int postoji_radnik(const char* filename, int mbr) {
-    FILE* f = fopen(filename, "rb");
-    if (!f) return 0;
-
-    Radnik blok[FAKTOR_BLOKIRANJA_RADNIK];
-
-    while (fread(blok, sizeof(Radnik), FAKTOR_BLOKIRANJA_RADNIK, f)
-           == FAKTOR_BLOKIRANJA_RADNIK) {
-        for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++)
-            if (blok[i].mbr == mbr) {
-                fclose(f);
-                return 1;
-            }
-    }
-    fclose(f);
-    return 0;
-}
-
 void ispis_radnika(const char* filename) {
     FILE* f = fopen(filename, "rb");
-    if (!f) return;
-
-    Radnik blok[FAKTOR_BLOKIRANJA_RADNIK];
-    int b = 0;
-
-    while (fread(blok, sizeof(Radnik), FAKTOR_BLOKIRANJA_RADNIK, f)
-           == FAKTOR_BLOKIRANJA_RADNIK) {
-
-        for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++) {
-            if (blok[i].mbr == -1) {
-                fclose(f);
-                return;
-            }
-            printf("%d %s %s %.2f %.2f (blok %d, %d)\n",
-                   blok[i].mbr, blok[i].ime, blok[i].prezime,
-                   blok[i].plata, blok[i].premija, b, i);
-        }
-        b++;
-    }
-    fclose(f);
-}
-
-void radnici_sa_bonusima(const char* radnik_file, const char* isplata_file) {
-    FILE* fr = fopen(radnik_file, "rb");
-    FILE* fi = fopen(isplata_file, "rb");
-
-    if (!fr || !fi) {
-        printf("Greska pri otvaranju datoteka.\n");
-        if (fr) fclose(fr);
-        if (fi) fclose(fi);
+    if (!f) {
+        printf("Greska!\n");
         return;
     }
 
-    Radnik blok_radnik[FAKTOR_BLOKIRANJA_RADNIK];
-    Isplata blok_isplata[FAKTOR_BLOKIRANJA_ISPLATA];
+    BlokRadnik blok;
+    int blok_index = 0;
 
-    int blok_broj = 0;
-    int pronadjen = 0;
-
-    while (fread(blok_radnik, sizeof(Radnik),
-                 FAKTOR_BLOKIRANJA_RADNIK, fr)
-           == FAKTOR_BLOKIRANJA_RADNIK) {
-
+    while (fread(&blok, sizeof(BlokRadnik), 1, f) == 1) {
         for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++) {
 
-            if (blok_radnik[i].mbr == -1) {
-                fclose(fr);
-                fclose(fi);
-                if (!pronadjen)
-                    printf("Nema radnika koji ispunjavaju uslov.\n");
+            if (blok.slogovi[i].mbr == -1) {
+                fclose(f);
                 return;
             }
 
-            int ima_bonus = 0;
-
-            /* OBAVEZNO: vracanje pokazivaca na pocetak isplata */
-            fseek(fi, 0, SEEK_SET);
-
-            while (fread(blok_isplata, sizeof(Isplata),
-                         FAKTOR_BLOKIRANJA_ISPLATA, fi)
-                   == FAKTOR_BLOKIRANJA_ISPLATA) {
-
-                for (int j = 0; j < FAKTOR_BLOKIRANJA_ISPLATA; j++) {
-
-                    if (blok_isplata[j].identifikator == -1)
-                        break;
-
-                    if (blok_isplata[j].mbr == blok_radnik[i].mbr &&
-                        strcmp(blok_isplata[j].razlog, "BONUS") == 0 &&
-                        blok_isplata[j].iznos > 2000) {
-
-                        ima_bonus = 1;
-                        break;
-                    }
-                }
-                if (ima_bonus) break;
-            }
-
-            if (ima_bonus) {
-                printf("---------------------------------------------\n");
-                printf("MBR: %d\n", blok_radnik[i].mbr);
-                printf("Ime: %s\n", blok_radnik[i].ime);
-                printf("Prezime: %s\n", blok_radnik[i].prezime);
-                printf("Plata: %.2f\n", blok_radnik[i].plata);
-                printf("Premija: %.2f\n", blok_radnik[i].premija);
-                printf("Blok: %d | Pozicija: %d\n", blok_broj, i);
-                pronadjen = 1;
-            }
+            printf("[%d,%d] MBR:%d %s %s Plata:%.2f Premija:%.2f\n",
+                   blok_index, i,
+                   blok.slogovi[i].mbr,
+                   blok.slogovi[i].ime,
+                   blok.slogovi[i].prezime,
+                   blok.slogovi[i].plata,
+                   blok.slogovi[i].premija);
         }
-        blok_broj++;
+        blok_index++;
     }
 
-    if (!pronadjen)
-        printf("Nema radnika koji ispunjavaju uslov.\n");
+    fclose(f);
+}
+
+
+void prikaz_radnika(const char* filename, int mbr) {
+    FILE* f = fopen(filename, "rb");
+    if (!f) {
+        printf("Greska!\n");
+        return;
+    }
+
+    BlokRadnik blok;
+    int blok_index = 0;
+
+    while (fread(&blok, sizeof(BlokRadnik), 1, f) == 1) {
+        for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++) {
+
+            if (blok.slogovi[i].mbr == -1) {
+                printf("Nije pronadjen.\n");
+                fclose(f);
+                return;
+            }
+
+            if (blok.slogovi[i].mbr == mbr) {
+                printf("Pronadjen radnik: [%d,%d]: %s %s Plata %.2f Premija %.2f\n",
+                       blok_index, i,
+                       blok.slogovi[i].ime,
+                       blok.slogovi[i].prezime,
+                       blok.slogovi[i].plata,
+                       blok.slogovi[i].premija);
+                fclose(f);
+                return;
+            }
+        }
+        blok_index++;
+    }
+
+    fclose(f);
+}
+
+
+void modifikacija_radnika(const char* filename, int mbr) {
+    FILE* f = fopen(filename, "rb+");
+    if (!f) {
+        printf("Greska!\n");
+        return;
+    }
+
+    BlokRadnik blok;
+
+    while (fread(&blok, sizeof(BlokRadnik), 1, f) == 1) {
+        for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++) {
+
+            if (blok.slogovi[i].mbr == -1) {
+                printf("Nije pronadjen.\n");
+                fclose(f);
+                return;
+            }
+
+            if (blok.slogovi[i].mbr == mbr) {
+
+                printf("Novo ime: ");
+                fgets(blok.slogovi[i].ime, MAX_IME, stdin);
+                blok.slogovi[i].ime[strcspn(blok.slogovi[i].ime, "\n")] = 0;
+
+                printf("Novo prezime: ");
+                fgets(blok.slogovi[i].prezime, MAX_PREZIME, stdin);
+                blok.slogovi[i].prezime[strcspn(blok.slogovi[i].prezime, "\n")] = 0;
+
+                printf("Nova plata: ");
+                scanf("%f", &blok.slogovi[i].plata);
+                ocisti_bafer();
+
+                printf("Nova premija: ");
+                scanf("%f", &blok.slogovi[i].premija);
+                ocisti_bafer();
+
+                fseek(f, -sizeof(BlokRadnik), SEEK_CUR);
+                fwrite(&blok, sizeof(BlokRadnik), 1, f);
+
+                printf("Izmenjeno.\n");
+                fclose(f);
+                return;
+            }
+        }
+    }
+
+    fclose(f);
+}
+
+
+
+void uslov_bonus(const char* radnici_fajl, const char* isplate_fajl) {
+
+    FILE* fr = fopen(radnici_fajl, "rb");
+    FILE* fi = fopen(isplate_fajl, "rb");
+
+    if (!fr || !fi) {
+        printf("Greska pri otvaranju fajlova!\n");
+        return;
+    }
+
+    BlokRadnik blok_r;
+    BlokIsplata blok_i;
+
+    int blok_index = 0;
+    int pronadjeno = 0;
+
+    while (fread(&blok_r, sizeof(BlokRadnik), 1, fr) == 1) {
+
+        for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++) {
+
+            if (blok_r.slogovi[i].mbr == -1) {
+                if (!pronadjeno)
+                    printf("Nema rezultata.\n");
+                fclose(fr);
+                fclose(fi);
+                return;
+            }
+
+            // mora imati premiju
+            if (blok_r.slogovi[i].premija > 0) {
+
+                int nasao_bonus = 0;
+
+                // RESET FAJLA ISPLATA
+                rewind(fi);
+
+                while (fread(&blok_i, sizeof(BlokIsplata), 1, fi) == 1) {
+
+                    for (int j = 0; j < FAKTOR_BLOKIRANJA_ISPLATA; j++) {
+
+                        if (blok_i.slogovi[j].identifikator == -1)
+                            break;
+
+                        if (
+                            blok_i.slogovi[j].mbr == blok_r.slogovi[i].mbr &&
+                            strcmp(blok_i.slogovi[j].razlog, "BONUS") == 0 &&
+                            blok_i.slogovi[j].iznos > 2000
+                        ) {
+                            nasao_bonus = 1;
+                        }
+                    }
+                }
+
+                if (nasao_bonus) {
+                    printf("-------------------------------------------------\n");
+                    printf("[%d,%d] %s %s\n",
+                           blok_index, i,
+                           blok_r.slogovi[i].ime,
+                           blok_r.slogovi[i].prezime);
+
+                    printf("Plata: %.2f Premija: %.2f\n",
+                           blok_r.slogovi[i].plata,
+                           blok_r.slogovi[i].premija);
+
+                    pronadjeno++;
+                }
+            }
+        }
+
+        blok_index++;
+    }
+
+    if (!pronadjeno)
+        printf("Nema rezultata.\n");
 
     fclose(fr);
     fclose(fi);
 }
 
-void izmeni_radnika(const char* filename, int mbr) {
-    FILE* f = fopen(filename, "rb+");
+void kreiraj_praznu_datoteku_radnik(const char* filename) {
+    FILE* f = fopen(filename, "wb");
     if (!f) {
-        printf("Datoteka ne postoji.\n");
+        printf("Greska!\n");
         return;
     }
 
-    Radnik blok[FAKTOR_BLOKIRANJA_RADNIK];
-    int blok_broj = 0;
+    BlokRadnik blok = {0};
+    blok.slogovi[0].mbr = -1;
 
-    while (fread(blok, sizeof(Radnik),
-                 FAKTOR_BLOKIRANJA_RADNIK, f)
-           == FAKTOR_BLOKIRANJA_RADNIK) {
-
-        for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++) {
-
-            if (blok[i].mbr == -1) {
-                printf("Radnik nije pronadjen.\n");
-                fclose(f);
-                return;
-            }
-
-            if (blok[i].mbr == mbr) {
-                printf("Unesite novo ime: ");
-                fgets(blok[i].ime, sizeof(blok[i].ime), stdin);
-                blok[i].ime[strcspn(blok[i].ime, "\n")] = 0;
-
-                printf("Unesite novo prezime: ");
-                fgets(blok[i].prezime, sizeof(blok[i].prezime), stdin);
-                blok[i].prezime[strcspn(blok[i].prezime, "\n")] = 0;
-
-                printf("Unesite novu platu: ");
-                scanf("%f", &blok[i].plata);
-                ocisti_bafer();
-
-                printf("Unesite novu premiju: ");
-                scanf("%f", &blok[i].premija);
-                ocisti_bafer();
-
-                fseek(f, blok_broj * sizeof(blok), SEEK_SET);
-                fwrite(blok, sizeof(Radnik),
-                       FAKTOR_BLOKIRANJA_RADNIK, f);
-
-                printf("Radnik uspesno izmenjen (blok %d, pozicija %d).\n",
-                       blok_broj, i);
-                fclose(f);
-                return;
-            }
-        }
-        blok_broj++;
-    }
-
-    printf("Radnik nije pronadjen.\n");
+    fwrite(&blok, sizeof(BlokRadnik), 1, f);
     fclose(f);
-}
 
+    printf("Kreiran fajl radnika.\n");
+}
 

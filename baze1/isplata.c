@@ -4,172 +4,189 @@
 #include <string.h>
 #include <stdlib.h>
 
-int validan_razlog(const char* razlog) {
-    return strcmp(razlog, "PLATA_DEO1") == 0 ||
-           strcmp(razlog, "PLATA_DEO2") == 0 ||
-           strcmp(razlog, "PUTNI_TROSKOVI") == 0 ||
-           strcmp(razlog, "BONUS") == 0 ||
-           strcmp(razlog, "DNEVNICA") == 0;
+void meni_isplata() {
+    int izbor;
+    char naziv_fajla[64] = "isplate.bin";
+
+    do {
+        printf("\n--- MENI ISPLATE ---\n");
+        printf("Aktivna datoteka: %s\n", naziv_fajla);
+        printf("1. Izaberi naziv fajla\n");
+        printf("2. Kreiraj praznu datoteku (f=5)\n");
+        printf("3. Unos isplate\n");
+        printf("4. DEBUG ispis svih isplata\n");
+        printf("0. Nazad\n");
+        printf("Izbor: ");
+
+        scanf("%d", &izbor);
+        ocisti_bafer();
+
+        switch (izbor) {
+            case 1:
+                printf("Unesite ime fajla: ");
+                fgets(naziv_fajla, sizeof(naziv_fajla), stdin);
+                naziv_fajla[strcspn(naziv_fajla, "\n")] = 0;
+                break;
+
+            case 2:
+                kreiraj_praznu_datoteku_isplata(naziv_fajla);
+                break;
+
+            case 3:
+                unos_isplate(naziv_fajla);
+                break;
+
+            case 4:
+                ispis_isplata(naziv_fajla);
+                break;
+
+            case 0:
+                printf("Nazad.\n");
+                break;
+
+            default:
+                printf("Nepoznat izbor!\n");
+        }
+
+    } while (izbor != 0);
 }
 
-void kreiraj_praznu_serijsku_isplata_datoteku(const char* filename) {
+void kreiraj_praznu_datoteku_isplata(const char* filename) {
     FILE* f = fopen(filename, "wb");
     if (!f) {
-        printf("Greska pri kreiranju datoteke.\n");
+        printf("Greska!\n");
         return;
     }
 
-    Isplata blok[FAKTOR_BLOKIRANJA_ISPLATA] = {0};
-    blok[0].identifikator = -1;   // EOF marker
+    BlokIsplata blok = {0};
+    blok.slogovi[0].identifikator = -1;
 
-    fwrite(blok, sizeof(Isplata), FAKTOR_BLOKIRANJA_ISPLATA, f);
+    fwrite(&blok, sizeof(BlokIsplata), 1, f);
     fclose(f);
 
-    printf("Datoteka \"%s\" uspesno kreirana.\n", filename);
+    printf("Kreirana datoteka isplata.\n");
 }
 
-void unos_isplate(const char* filename, const char* radnik_file) {
+int validan_razlog(const char* r) {
+    return strcmp(r, "PLATA_DEO1") == 0 ||
+           strcmp(r, "PLATA_DEO2") == 0 ||
+           strcmp(r, "PUTNI_TROSKOVI") == 0 ||
+           strcmp(r, "BONUS") == 0 ||
+           strcmp(r, "DNEVNICA") == 0;
+}
+
+void unos_isplate(const char* filename) {
+    FILE* f = fopen(filename, "rb+");
+    if (!f) {
+        printf("Greska!\n");
+        return;
+    }
+
     Isplata nova;
 
-    printf("Unesite identifikator isplate: ");
-    scanf("%d", &nova.identifikator);
-    ocisti_bafer();
+    printf("ID isplate: ");
+    scanf("%d", &nova.identifikator); ocisti_bafer();
 
-    if (nova.identifikator <= 0) {
-        printf("Identifikator mora biti pozitivan.\n");
-        return;
-    }
+    printf("MBR radnika: ");
+    scanf("%d", &nova.mbr); ocisti_bafer();
 
-    printf("Unesite MBR radnika: ");
-    scanf("%d", &nova.mbr);
-    ocisti_bafer();
+    printf("Mesec: ");
+    scanf("%d", &nova.mesec); ocisti_bafer();
 
-    if (!postoji_radnik(radnik_file, nova.mbr)) {
-        printf("Radnik sa datim MBR ne postoji.\n");
-        return;
-    }
+    printf("Godina: ");
+    scanf("%d", &nova.godina); ocisti_bafer();
 
-    printf("Unesite mesec: ");
-    scanf("%d", &nova.mesec);
-    ocisti_bafer();
-
-    printf("Unesite godinu: ");
-    scanf("%d", &nova.godina);
-    ocisti_bafer();
-
-    printf("Unesite datum isplate (D-M-YYYY): ");
-    fgets(nova.datum_isplate, sizeof(nova.datum_isplate), stdin);
+    printf("Datum (D-M-YYYY): ");
+    fgets(nova.datum_isplate, MAX_DATUM, stdin);
     nova.datum_isplate[strcspn(nova.datum_isplate, "\n")] = 0;
 
-    if (!provera_ascii(nova.datum_isplate)) {
-        printf("Datum mora biti ASCII.\n");
-        return;
-    }
+    printf("Iznos: ");
+    scanf("%f", &nova.iznos); ocisti_bafer();
 
-    printf("Unesite iznos: ");
-    scanf("%f", &nova.iznos);
-    ocisti_bafer();
-
-    printf("Unesite razlog isplate: ");
+    printf("Razlog: ");
     fgets(nova.razlog, MAX_RAZLOG, stdin);
     nova.razlog[strcspn(nova.razlog, "\n")] = 0;
 
     if (!validan_razlog(nova.razlog)) {
-        printf("Nevalidan razlog isplate.\n");
+        printf("Nevalidan razlog!\n");
+        fclose(f);
         return;
     }
 
-    FILE* f = fopen(filename, "rb+");
-    if (!f) {
-        printf("Datoteka ne postoji.\n");
-        return;
-    }
+    BlokIsplata blok;
+    int blok_index = 0;
 
-    Isplata blok[FAKTOR_BLOKIRANJA_ISPLATA];
-    int blok_broj = 0;
-
-    while (fread(blok, sizeof(Isplata), FAKTOR_BLOKIRANJA_ISPLATA, f)
-           == FAKTOR_BLOKIRANJA_ISPLATA) {
+    while (fread(&blok, sizeof(BlokIsplata), 1, f) == 1) {
 
         for (int i = 0; i < FAKTOR_BLOKIRANJA_ISPLATA; i++) {
 
-            if (blok[i].identifikator == nova.identifikator) {
-                printf("Isplata sa datim identifikatorom vec postoji.\n");
+            //  DUPLIKAT ID
+            if (blok.slogovi[i].identifikator == nova.identifikator) {
+                printf("ID vec postoji!\n");
                 fclose(f);
                 return;
             }
 
-            if (blok[i].identifikator == -1) {
-                blok[i] = nova;
+            // EOF
+            if (blok.slogovi[i].identifikator == -1) {
+
+                blok.slogovi[i] = nova;
 
                 if (i < FAKTOR_BLOKIRANJA_ISPLATA - 1)
-                    blok[i + 1].identifikator = -1;
+                    blok.slogovi[i + 1].identifikator = -1;
 
-                fseek(f, blok_broj * sizeof(blok), SEEK_SET);
-                fwrite(blok, sizeof(Isplata), FAKTOR_BLOKIRANJA_ISPLATA, f);
+                fseek(f, -sizeof(BlokIsplata), SEEK_CUR);
+                fwrite(&blok, sizeof(BlokIsplata), 1, f);
 
                 if (i == FAKTOR_BLOKIRANJA_ISPLATA - 1) {
-                    Isplata novi_blok[FAKTOR_BLOKIRANJA_ISPLATA] = {0};
-                    novi_blok[0].identifikator = -1;
-                    fwrite(novi_blok, sizeof(Isplata),
-                           FAKTOR_BLOKIRANJA_ISPLATA, f);
+                    BlokIsplata novi = {0};
+                    novi.slogovi[0].identifikator = -1;
+                    fwrite(&novi, sizeof(BlokIsplata), 1, f);
                 }
 
-                printf("Isplata upisana (blok %d, pozicija %d).\n", blok_broj, i);
+                printf("Upisana isplata (blok %d, pozicija %d)\n", blok_index, i);
                 fclose(f);
                 return;
             }
         }
-        blok_broj++;
+
+        blok_index++;
     }
+
+    printf("Greska: EOF nije pronadjen.\n");
     fclose(f);
-}
-
-int postoji_isplata(const char* filename, int identifikator) {
-    FILE* f = fopen(filename, "rb");
-    if (!f) return 0;
-
-    Isplata blok[FAKTOR_BLOKIRANJA_ISPLATA];
-
-    while (fread(blok, sizeof(Isplata), FAKTOR_BLOKIRANJA_ISPLATA, f)
-           == FAKTOR_BLOKIRANJA_ISPLATA) {
-        for (int i = 0; i < FAKTOR_BLOKIRANJA_ISPLATA; i++)
-            if (blok[i].identifikator == identifikator) {
-                fclose(f);
-                return 1;
-            }
-    }
-    fclose(f);
-    return 0;
 }
 
 void ispis_isplata(const char* filename) {
     FILE* f = fopen(filename, "rb");
-    if (!f) return;
+    if (!f) {
+        printf("Greska!\n");
+        return;
+    }
 
-    Isplata blok[FAKTOR_BLOKIRANJA_ISPLATA];
-    int b = 0;
+    BlokIsplata blok;
+    int blok_index = 0;
 
-    while (fread(blok, sizeof(Isplata), FAKTOR_BLOKIRANJA_ISPLATA, f)
-           == FAKTOR_BLOKIRANJA_ISPLATA) {
-
+    while (fread(&blok, sizeof(BlokIsplata), 1, f) == 1) {
         for (int i = 0; i < FAKTOR_BLOKIRANJA_ISPLATA; i++) {
-            if (blok[i].identifikator == -1) {
+
+            if (blok.slogovi[i].identifikator == -1) {
                 fclose(f);
                 return;
             }
 
-            printf("%d %d %d %d %s %.2f %s (blok %d, %d)\n",
-                   blok[i].identifikator,
-                   blok[i].mbr,
-                   blok[i].mesec,
-                   blok[i].godina,
-                   blok[i].datum_isplate,
-                   blok[i].iznos,
-                   blok[i].razlog,
-                   b, i);
+            printf("[%d,%d] ID:%d MBR:%d %d/%d %s Iznos:%.2f Razlog:%s\n",
+                   blok_index, i,
+                   blok.slogovi[i].identifikator,
+                   blok.slogovi[i].mbr,
+                   blok.slogovi[i].mesec,
+                   blok.slogovi[i].godina,
+                   blok.slogovi[i].datum_isplate,
+                   blok.slogovi[i].iznos,
+                   blok.slogovi[i].razlog);
         }
-        b++;
+        blok_index++;
     }
+
     fclose(f);
 }

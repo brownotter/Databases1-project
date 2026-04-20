@@ -1,8 +1,8 @@
 #ifndef UTILIS_H_INCLUDED
 #define UTILIS_H_INCLUDED
 
-/* Èisti ulazni bafer nakon scanf */
-void ocisti_bafer(void);
+/* Cisti ulazni bafer nakon scanf */
+void ocisti_bafer();
 
 /* Provera da li string sadrži samo ASCII karaktere */
 int provera_ascii(const char* s);

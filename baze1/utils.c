@@ -1,9 +1,8 @@
 #include "utils.h"
 #include <stdio.h>
 
-void ocisti_bafer(void) {
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF);
+void ocisti_bafer() {
+    while(getchar() != '\n');
 }
 
 int provera_ascii(const char* s) {
