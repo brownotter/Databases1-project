@@ -31,6 +31,10 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Unit filename="agregat.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="agregat.h" />
 		<Unit filename="isplata.c">
 			<Option compilerVar="CC" />
 		</Unit>
