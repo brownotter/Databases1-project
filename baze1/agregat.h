@@ -1,6 +1,8 @@
 #ifndef AGREGAT_H_INCLUDED
 #define AGREGAT_H_INCLUDED
 
+#include "isplata.h"
+
 #define F1 5
 #define N 2
 #define FZ 1
@@ -47,5 +49,7 @@ void insert_agregat(Agregat novi);
 void pretraga_sa_overflow(int mbr);
 void logicko_brisanje_overflow(int mbr);
 
+void update_agregat(Agregat novi);
+void azuriraj_agregat_isplata(Isplata i);
 
 #endif // AGREGAT_H_INCLUDED

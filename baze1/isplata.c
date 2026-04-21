@@ -1,6 +1,9 @@
 #include "isplata.h"
 #include "radnik.h"
 #include "utils.h"
+#include "log.h"
+#include "agregat.h"
+
 #include <string.h>
 #include <stdlib.h>
 
@@ -146,6 +149,7 @@ void unos_isplate(const char* filename) {
                 }
 
                 printf("Upisana isplata (blok %d, pozicija %d)\n", blok_index, i);
+                upisi_log(nova.mbr, "INSERT_ISPLATA", 1);
                 fclose(f);
                 return;
             }

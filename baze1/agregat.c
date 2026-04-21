@@ -2,12 +2,11 @@
 #include "radnik.h"
 #include "utils.h"
 #include "isplata.h"
+#include "log.h"
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#include <stdio.h>
-#include "agregat.h"
 
 void meni_agregat()
 {
@@ -21,6 +20,8 @@ void meni_agregat()
         printf("4. Logicko brisanje\n");
         printf("5. Insert (test overflow)\n");
         printf("6. Ispis (primarna + overflow)\n");
+        printf("7. Prikaz log fajla\n");
+        printf("8. Prosecni pristupi\n");
         printf("0. Nazad\n");
         printf("Izbor: ");
 
@@ -73,6 +74,14 @@ void meni_agregat()
 
         case 6:
             debug_ispis();
+            break;
+
+        case 7:
+            prikaz_loga();
+            break;
+
+        case 8:
+            prosecni_pristupi();
             break;
 
         case 0:
@@ -359,7 +368,7 @@ void insert_agregat(Agregat novi)
             return;
         }
 
-        // postoji lanac = idi do kraja
+        // postoji lanac - idi do kraja
         long current = glava->next;
         Agregat temp;
 
@@ -525,4 +534,63 @@ void debug_ispis()
 
     fclose(fd);
     fclose(fo);
+}
+
+
+void update_agregat(Agregat novi)
+{
+    FILE *f = fopen(DATA_FILE, "rb+");
+    Agregat blok[F1];
+
+    while (fread(blok, sizeof(Agregat), F1, f)) {
+        for (int i = 0; i < F1; i++) {
+            if (blok[i].mbr == novi.mbr) {
+
+                strcpy(blok[i].ime, novi.ime);
+                strcpy(blok[i].prezime, novi.prezime);
+                blok[i].plata = novi.plata;
+                blok[i].premija = novi.premija;
+
+                fseek(f, -(long)sizeof(Agregat)*F1, SEEK_CUR);
+                fwrite(blok, sizeof(Agregat), F1, f);
+
+                upisi_log(novi.mbr, "UPDATE_AGREGAT", 2);
+
+                fclose(f);
+                return;
+            }
+        }
+    }
+
+    fclose(f);
+}
+
+void azuriraj_agregat_isplata(Isplata i)
+{
+    FILE *f = fopen(DATA_FILE, "rb+");
+    Agregat blok[F1];
+
+    while (fread(blok, sizeof(Agregat), F1, f)) {
+        for (int j = 0; j < F1; j++) {
+
+            if (blok[j].mbr == i.mbr) {
+
+                if (strcmp(i.razlog, "BONUS") == 0)
+                    blok[j].uk_bonus += i.iznos;
+
+                if (strcmp(i.razlog, "DNEVNICA") == 0)
+                    blok[j].uk_dnevnice += i.iznos;
+
+                fseek(f, -(long)sizeof(Agregat)*F1, SEEK_CUR);
+                fwrite(blok, sizeof(Agregat), F1, f);
+
+                upisi_log(i.mbr, "UPDATE_ISPLATA", 2);
+
+                fclose(f);
+                return;
+            }
+        }
+    }
+
+    fclose(f);
 }
