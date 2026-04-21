@@ -149,7 +149,7 @@ void unos_radnika(const char* filename) {
                 }
 
                 printf("Upisan radnik (blok %d, pozicija %d)\n", blok_index, i);
-                upisi_log(novi.mbr, "INSERT_RADNIK", 1);
+                upisi_log(novi.mbr, "INSERT_RADNIK");
                 fclose(f);
                 return;
             }
@@ -271,7 +271,7 @@ void modifikacija_radnika(const char* filename, int mbr) {
                 fwrite(&blok, sizeof(BlokRadnik), 1, f);
 
                 printf("Izmenjeno.\n");
-                upisi_log(mbr, "UPDATE_RADNIK", 1);
+                upisi_log(mbr, "UPDATE_RADNIK");
                 fclose(f);
                 return;
             }

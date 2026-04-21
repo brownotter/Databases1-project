@@ -14,14 +14,13 @@ void meni_agregat()
 
     do {
         printf("\n--- MENI AGREGAT ---\n");
-        printf("1. Formiraj aktivnu datoteku\n");
+        printf("1. Formiranje datotek\n");
         printf("2. Pretraga po MBR (index + overflow)\n");
         printf("3. Prikaz DN > BONUS\n");
         printf("4. Logicko brisanje\n");
         printf("5. Insert (test overflow)\n");
         printf("6. Ispis (primarna + overflow)\n");
-        printf("7. Prikaz log fajla\n");
-        printf("8. Prosecni pristupi\n");
+         printf("7. Reorganizacija (manual)\n");
         printf("0. Nazad\n");
         printf("Izbor: ");
 
@@ -54,7 +53,6 @@ void meni_agregat()
         }
 
         case 5: {
-            // rucni unos za test overflow
             Agregat a;
 
             printf("MBR: "); scanf("%d", &a.mbr);
@@ -77,11 +75,7 @@ void meni_agregat()
             break;
 
         case 7:
-            prikaz_loga();
-            break;
-
-        case 8:
-            prosecni_pristupi();
+            reorganizuj_datoteku();
             break;
 
         case 0:
@@ -554,7 +548,7 @@ void update_agregat(Agregat novi)
                 fseek(f, -(long)sizeof(Agregat)*F1, SEEK_CUR);
                 fwrite(blok, sizeof(Agregat), F1, f);
 
-                upisi_log(novi.mbr, "UPDATE_AGREGAT", 2);
+                upisi_log(novi.mbr, "UPDATE_AGREGAT");
 
                 fclose(f);
                 return;
@@ -584,7 +578,7 @@ void azuriraj_agregat_isplata(Isplata i)
                 fseek(f, -(long)sizeof(Agregat)*F1, SEEK_CUR);
                 fwrite(blok, sizeof(Agregat), F1, f);
 
-                upisi_log(i.mbr, "UPDATE_ISPLATA", 2);
+                upisi_log(i.mbr, "UPDATE_ISPLATA");
 
                 fclose(f);
                 return;
@@ -593,4 +587,102 @@ void azuriraj_agregat_isplata(Isplata i)
     }
 
     fclose(f);
+}
+
+// cisti se datoteka, brisu se logicki obrisani slogovi, ako je status=1
+void reorganizuj_datoteku()
+{
+    FILE *f = fopen(DATA_FILE, "rb");
+    FILE *temp = fopen("temp.bin", "wb");
+
+    if (!f || !temp) {
+        printf("Greska reorganizacija.\n");
+        return;
+    }
+
+    Agregat svi[1000]; // dovoljno za projekat
+    int n = 0;
+
+    Agregat blok[F1];
+
+    // 1. ucitaj sve iz primarne
+    while (fread(blok, sizeof(Agregat), F1, f) == F1) {
+        for (int i = 0; i < F1; i++) {
+            if (blok[i].status == 0 && blok[i].mbr > 0) {
+                svi[n++] = blok[i];
+            }
+        }
+    }
+
+    fclose(f);
+
+    // 2. ucitaj overflow
+    FILE *fo = fopen(OVERFLOW_FILE, "rb");
+    if (fo) {
+        Agregat a;
+        while (fread(&a, sizeof(Agregat), 1, fo)) {
+            if (a.status == 0) {
+                svi[n++] = a;
+            }
+        }
+        fclose(fo);
+    }
+
+    // 3. sortiranje po MBR
+    for (int i = 0; i < n-1; i++) {
+        for (int j = i+1; j < n; j++) {
+            if (svi[i].mbr > svi[j].mbr) {
+                Agregat tmp = svi[i];
+                svi[i] = svi[j];
+                svi[j] = tmp;
+            }
+        }
+    }
+
+    // 4. ponovno formiranje primarne zone
+    Agregat blok2[F1];
+    int idx = 0;
+
+    for (int i = 0; i < n; i++) {
+
+        svi[i].next = -1;
+
+        blok2[idx++] = svi[i];
+
+        if (idx == F1) {
+            fwrite(blok2, sizeof(Agregat), F1, temp);
+            idx = 0;
+        }
+    }
+
+    if (idx > 0)
+        fwrite(blok2, sizeof(Agregat), idx, temp);
+
+    fclose(temp);
+
+    // 5. zameni staru datoteku
+    remove(DATA_FILE);
+    rename("temp.bin", DATA_FILE);
+
+    // 6. reset overflow
+    FILE *clear = fopen(OVERFLOW_FILE, "wb");
+    fclose(clear);
+
+    // 7. ponovo napravi indeks
+    formiraj_indeks();
+
+    printf("Reorganizacija zavrsena.\n");
+}
+
+
+static void dodaj_u_novi_blok(FILE *f, Agregat *blok, int *idx, Agregat a)
+{
+    blok[*idx] = a;
+    (*idx)++;
+
+    if (*idx == F1) {
+        fwrite(blok, sizeof(Agregat), F1, f);
+        *idx = 0;
+        memset(blok, 0, sizeof(Agregat) * F1);
+    }
 }

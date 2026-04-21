@@ -2,6 +2,8 @@
 #define LOG_H_INCLUDED
 
 #define F_LOG 6
+#define MAX_PROSEK 3
+#define LOG_FILE "log.bin"
 
 typedef struct {
     int id;
@@ -11,7 +13,10 @@ typedef struct {
 } LogSlog;
 
 void prikaz_loga();
-void upisi_log(int mbr, const char* operacija, int pristupi);
+void upisi_log(int mbr, const char* operacija);
 void prosecni_pristupi();
+
+void proveri_reorganizaciju();
+void reorganizuj_datoteku_log();
 
 #endif // LOG_H_INCLUDED

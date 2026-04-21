@@ -52,4 +52,6 @@ void logicko_brisanje_overflow(int mbr);
 void update_agregat(Agregat novi);
 void azuriraj_agregat_isplata(Isplata i);
 
+void reorganizuj_datoteku();
+
 #endif // AGREGAT_H_INCLUDED
