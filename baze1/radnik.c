@@ -16,12 +16,12 @@ void meni_radnik() {
         printf("\n--- MENI RADNIK ---\n");
         printf("Aktivna datoteka: %s\n", naziv_fajla);
         printf("1. Izaberi naziv fajla\n");
-        printf("2. Kreiraj praznu datoteku (f=5)\n");
+        printf("2. Kreiraj praznu datoteku\n");
         printf("3. Unos radnika\n");
         printf("4. Prikaz po MBR\n");
         printf("5. Modifikacija radnika\n");
         printf("6. Ispis svih radnika\n");
-        printf("7. Uslov: BONUS > 2000\n");
+        printf("7. Prikaz BONUS > 2000\n");
         printf("0. Nazad\n");
         printf("Izbor: ");
 
@@ -127,12 +127,10 @@ void unos_radnika(const char* filename) {
                 return;
             }
 
-            //  upis eof
             if (blok.slogovi[i].mbr == -1) {
 
                 blok.slogovi[i] = novi;
 
-                // postavi novi EOF
                 if (i < FAKTOR_BLOKIRANJA_RADNIK - 1) {
                     blok.slogovi[i + 1].mbr = -1;
                 }
@@ -249,7 +247,7 @@ void modifikacija_radnika(const char* filename, int mbr) {
 
     while (fread(&blok, sizeof(BlokRadnik), 1, f) == 1) {
 
-        broj_pristupa++; // svaki blok = 1 pristup
+        broj_pristupa++;
 
         for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++) {
 
@@ -286,7 +284,6 @@ void modifikacija_radnika(const char* filename, int mbr) {
 
                 fclose(f);
 
-                // LOG SA REALNIM BROJEM PRISTUPA
                 upisi_log(mbr, "UPDATE_RADNIK", broj_pristupa);
                 return;
             }
@@ -333,7 +330,7 @@ void uslov_bonus(const char* radnici_fajl, const char* isplate_fajl) {
 
                 int nasao_bonus = 0;
 
-                // RESET FAJLA ISPLATA
+                // resetuje se fajl isplata
                 rewind(fi);
 
                 while (fread(&blok_i, sizeof(BlokIsplata), 1, fi) == 1) {

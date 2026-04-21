@@ -3,9 +3,9 @@
 
 #include "isplata.h"
 
-#define F1 5
-#define N 2
-#define FZ 1
+#define F1 5  //fakt blok prim zone
+#define N 2   //zona indeksa
+#define FZ 1 //faktor blokiranja
 
 #define DATA_FILE "agregat.bin"
 #define INDEX_FILE "index.bin"

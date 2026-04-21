@@ -15,12 +15,12 @@ void meni_agregat()
     do {
         printf("\n--- MENI AGREGAT ---\n");
         printf("1. Formiranje datotek\n");
-        printf("2. Pretraga po MBR (index + overflow)\n");
-        printf("3. Prikaz DN > BONUS\n");
+        printf("2. Pretraga dnevnice po MBR (index + overflow)\n");
+        printf("3. Prikaz DNEVNICA > BONUS\n");
         printf("4. Logicko brisanje\n");
         //printf("5. Insert (test overflow)\n");
         printf("5. Ispis (primarna + overflow)\n");
-         //printf("7. Reorganizacija (manual)\n");
+        //printf("6. Reorganizacija (manual)\n");
         printf("0. Nazad\n");
         printf("Izbor: ");
 
@@ -74,8 +74,8 @@ void meni_agregat()
             debug_ispis();
             break;
 
-        //case 7:
-          //  reorganizuj_datoteku();
+        //case 6:
+            //reorganizuj_datoteku();
             //break;
 
         case 0:
@@ -332,7 +332,6 @@ void insert_agregat(Agregat novi)
 
     while (fread(blok, sizeof(Agregat), F1, fd) == F1) {
 
-        // pokušaj ubacivanja u blok
         for (int i = 0; i < F1; i++) {
 
             if (blok[i].status == 1 || blok[i].mbr == 0) {
@@ -349,7 +348,7 @@ void insert_agregat(Agregat novi)
             }
         }
 
-        // nema mesta - ide overflow NA PRVI SLOG BLOKA
+        // nema mesta . overflow
         Agregat *glava = &blok[0];
 
         // ako nema lanac
@@ -368,7 +367,7 @@ void insert_agregat(Agregat novi)
             return;
         }
 
-        // postoji lanac - idi do kraja
+        // akko postoji lanac ide do kraja
         long current = glava->next;
         Agregat temp;
 
@@ -606,12 +605,12 @@ void reorganizuj_datoteku()
         return;
     }
 
-    Agregat svi[1000]; // dovoljno za projekat
+    Agregat svi[1000];
     int n = 0;
 
     Agregat blok[F1];
 
-    // 1. ucitaj sve iz primarne
+    //ucitavanje iz primarne
     while (fread(blok, sizeof(Agregat), F1, f) == F1) {
         for (int i = 0; i < F1; i++) {
             if (blok[i].status == 0 && blok[i].mbr > 0) {
@@ -622,7 +621,7 @@ void reorganizuj_datoteku()
 
     fclose(f);
 
-    // 2. ucitaj overflow
+    // ucitaj overflow
     FILE *fo = fopen(OVERFLOW_FILE, "rb");
     if (fo) {
         Agregat a;
@@ -634,7 +633,7 @@ void reorganizuj_datoteku()
         fclose(fo);
     }
 
-    // 3. sortiranje po MBR
+    // sortiranje po MBR
     for (int i = 0; i < n-1; i++) {
         for (int j = i+1; j < n; j++) {
             if (svi[i].mbr > svi[j].mbr) {
@@ -645,7 +644,7 @@ void reorganizuj_datoteku()
         }
     }
 
-    // 4. ponovno formiranje primarne zone
+    // ponovno formiranje primarne zone
     Agregat blok2[F1];
     int idx = 0;
 
@@ -666,15 +665,15 @@ void reorganizuj_datoteku()
 
     fclose(temp);
 
-    // 5. zameni staru datoteku
+    // zamenaa staru datoteku
     remove(DATA_FILE);
     rename("temp.bin", DATA_FILE);
 
-    // 6. reset overflow
+    // reset overflow
     FILE *clear = fopen(OVERFLOW_FILE, "wb");
     fclose(clear);
 
-    // 7. ponovo napravi indeks
+    // ponovo napravi indeks
     formiraj_indeks();
 
     printf("Reorganizacija zavrsena.\n");

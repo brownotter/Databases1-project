@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1776769881 source:c:\users\andje\documents\git\bp1-projekat\baze1\isplata.c
+1776786031 source:c:\users\andje\documents\git\bp1-projekat\baze1\isplata.c
 	"isplata.h"
 	"radnik.h"
 	"utils.h"
@@ -8,7 +8,7 @@
 	<string.h>
 	<stdlib.h>
 
-1776642163 c:\users\andje\documents\git\bp1-projekat\baze1\isplata.h
+1776786239 c:\users\andje\documents\git\bp1-projekat\baze1\isplata.h
 	<stdio.h>
 
 1776641080 c:\users\andje\documents\git\bp1-projekat\baze1\radnik.h
@@ -16,7 +16,7 @@
 
 1776639859 c:\users\andje\documents\git\bp1-projekat\baze1\utils.h
 
-1776770778 source:c:\users\andje\documents\git\bp1-projekat\baze1\radnik.c
+1776786110 source:c:\users\andje\documents\git\bp1-projekat\baze1\radnik.c
 	"radnik.h"
 	"utils.h"
 	"isplata.h"
@@ -30,7 +30,7 @@
 	"utils.h"
 	<stdio.h>
 
-1776764939 source:c:\users\andje\documents\git\bp1-projekat\baze1\main.c
+1776785231 source:c:\users\andje\documents\git\bp1-projekat\baze1\main.c
 	<stdio.h>
 	<string.h>
 	"radnik.h"
@@ -39,10 +39,10 @@
 	"agregat.h"
 	"log.h"
 
-1776767697 c:\users\andje\documents\git\bp1-projekat\baze1\agregat.h
+1776786369 c:\users\andje\documents\git\bp1-projekat\baze1\agregat.h
 	"isplata.h"
 
-1776769839 source:c:\users\andje\documents\git\bp1-projekat\baze1\agregat.c
+1776785993 source:c:\users\andje\documents\git\bp1-projekat\baze1\agregat.c
 	"agregat.h"
 	"radnik.h"
 	"utils.h"
@@ -52,10 +52,10 @@
 	<stdlib.h>
 	<stdio.h>
 
-1776770183 source:c:\users\andje\documents\git\bp1-projekat\baze1\log.c
+1776785557 source:c:\users\andje\documents\git\bp1-projekat\baze1\log.c
 	"log.h"
 	<stdio.h>
 	<string.h>
 
-1776769923 c:\users\andje\documents\git\bp1-projekat\baze1\log.h
+1776785231 c:\users\andje\documents\git\bp1-projekat\baze1\log.h
 

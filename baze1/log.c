@@ -69,16 +69,28 @@ void prosecni_pristupi()
     if (!f) return;
 
     LogSlog l;
-    int sum = 0, cnt = 0;
 
-    while (fread(&l, sizeof(LogSlog), 1, f)) {
-        sum += l.broj_pristupa;
-        cnt++;
+    int sum = 0;
+    int cnt = 0;
+
+    int last_id = -1;
+
+    while (fread(&l, sizeof(LogSlog), 1, f))
+    {
+        if (l.id != last_id)
+        {
+            sum += l.broj_pristupa;
+            cnt++;
+            last_id = l.id;
+        }
     }
 
     fclose(f);
 
-    if (cnt == 0) return;
+    if (cnt == 0) {
+        printf("Nema podataka.\n");
+        return;
+    }
 
     printf("Prosecni broj pristupa: %.2f\n", (float)sum / cnt);
 }
@@ -129,8 +141,6 @@ void reorganizuj_datoteku_log()
     LogSlog l;
 
     while (fread(&l, sizeof(LogSlog), 1, old)) {
-
-        // èuvamo sve (možeš filtrirati kasnije)
         fwrite(&l, sizeof(LogSlog), 1, tmp);
     }
 

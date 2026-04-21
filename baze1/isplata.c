@@ -15,7 +15,7 @@ void meni_isplata() {
         printf("\n--- MENI ISPLATE ---\n");
         printf("Aktivna datoteka: %s\n", naziv_fajla);
         printf("1. Izaberi naziv fajla\n");
-        printf("2. Kreiraj praznu datoteku (f=5)\n");
+        printf("2. Kreiraj praznu datoteku\n");
         printf("3. Unos isplate\n");
         printf("4. Ispis svih isplata\n");
         printf("0. Nazad\n");
