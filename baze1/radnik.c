@@ -149,7 +149,7 @@ void unos_radnika(const char* filename) {
                 }
 
                 printf("Upisan radnik (blok %d, pozicija %d)\n", blok_index, i);
-                upisi_log(novi.mbr, "INSERT_RADNIK");
+                upisi_log(novi.mbr, "INSERT_RADNIK",1);
                 fclose(f);
                 return;
             }
@@ -161,6 +161,8 @@ void unos_radnika(const char* filename) {
     printf("Greska: nije pronadjen EOF!\n");
     fclose(f);
 }
+
+//ispis svih radnika radi provere
 void ispis_radnika(const char* filename) {
     FILE* f = fopen(filename, "rb");
     if (!f) {
@@ -203,30 +205,34 @@ void prikaz_radnika(const char* filename, int mbr) {
 
     BlokRadnik blok;
     int blok_index = 0;
+    int broj_pristupa = 0;
 
     while (fread(&blok, sizeof(BlokRadnik), 1, f) == 1) {
+        broj_pristupa++; // svaki blok = 1 pristup
+
         for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++) {
 
             if (blok.slogovi[i].mbr == -1) {
-                printf("Nije pronadjen.\n");
+                upisi_log(mbr, "SEARCH_RADNIK", broj_pristupa);
                 fclose(f);
                 return;
             }
 
             if (blok.slogovi[i].mbr == mbr) {
-                printf("Pronadjen radnik: [%d,%d]: %s %s Plata %.2f Premija %.2f\n",
-                       blok_index, i,
+                printf("Pronadjen radnik: %s %s\n",
                        blok.slogovi[i].ime,
-                       blok.slogovi[i].prezime,
-                       blok.slogovi[i].plata,
-                       blok.slogovi[i].premija);
+                       blok.slogovi[i].prezime);
+
+                upisi_log(mbr, "SEARCH_RADNIK", broj_pristupa);
                 fclose(f);
                 return;
             }
         }
+
         blok_index++;
     }
 
+    upisi_log(mbr, "SEARCH_RADNIK", broj_pristupa);
     fclose(f);
 }
 
@@ -239,13 +245,19 @@ void modifikacija_radnika(const char* filename, int mbr) {
     }
 
     BlokRadnik blok;
+    int broj_pristupa = 0;
 
     while (fread(&blok, sizeof(BlokRadnik), 1, f) == 1) {
+
+        broj_pristupa++; // svaki blok = 1 pristup
+
         for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++) {
 
             if (blok.slogovi[i].mbr == -1) {
                 printf("Nije pronadjen.\n");
                 fclose(f);
+
+                upisi_log(mbr, "UPDATE_RADNIK", broj_pristupa);
                 return;
             }
 
@@ -271,16 +283,21 @@ void modifikacija_radnika(const char* filename, int mbr) {
                 fwrite(&blok, sizeof(BlokRadnik), 1, f);
 
                 printf("Izmenjeno.\n");
-                upisi_log(mbr, "UPDATE_RADNIK");
+
                 fclose(f);
+
+                // LOG SA REALNIM BROJEM PRISTUPA
+                upisi_log(mbr, "UPDATE_RADNIK", broj_pristupa);
                 return;
             }
         }
     }
 
     fclose(f);
-}
 
+    // ako nije pronaðen
+    upisi_log(mbr, "UPDATE_RADNIK", broj_pristupa);
+}
 
 
 void uslov_bonus(const char* radnici_fajl, const char* isplate_fajl) {

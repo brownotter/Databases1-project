@@ -13,7 +13,10 @@ typedef struct {
 } LogSlog;
 
 void prikaz_loga();
-void upisi_log(int mbr, const char* operacija);
+
+static int ucitaj_poslednji_id();
+
+void upisi_log(int mbr, const char* operacija, int pristupi);
 void prosecni_pristupi();
 
 void proveri_reorganizaciju();

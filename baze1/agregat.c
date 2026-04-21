@@ -18,9 +18,9 @@ void meni_agregat()
         printf("2. Pretraga po MBR (index + overflow)\n");
         printf("3. Prikaz DN > BONUS\n");
         printf("4. Logicko brisanje\n");
-        printf("5. Insert (test overflow)\n");
-        printf("6. Ispis (primarna + overflow)\n");
-         printf("7. Reorganizacija (manual)\n");
+        //printf("5. Insert (test overflow)\n");
+        printf("5. Ispis (primarna + overflow)\n");
+         //printf("7. Reorganizacija (manual)\n");
         printf("0. Nazad\n");
         printf("Izbor: ");
 
@@ -52,7 +52,7 @@ void meni_agregat()
             break;
         }
 
-        case 5: {
+        /*case 5: {
             Agregat a;
 
             printf("MBR: "); scanf("%d", &a.mbr);
@@ -68,15 +68,15 @@ void meni_agregat()
 
             insert_agregat(a);
             break;
-        }
+        }*/
 
-        case 6:
+        case 5:
             debug_ispis();
             break;
 
-        case 7:
-            reorganizuj_datoteku();
-            break;
+        //case 7:
+          //  reorganizuj_datoteku();
+            //break;
 
         case 0:
             printf("Nazad.\n");
@@ -141,9 +141,15 @@ void formiraj_aktivnu_datoteku(const char* radnici, const char* isplate)
         }
     }
 
-    if (idx > 0)
-        fwrite(blok, sizeof(Agregat), idx, fo);
+    if (idx > 0) {
+    for (int i = idx; i < F1; i++) {
+        blok[i].mbr = -1;
+        blok[i].status = 0;
+        blok[i].next = -1;
+    }
 
+    fwrite(blok, sizeof(Agregat), F1, fo);
+}
     fclose(fr);
     fclose(fi);
     fclose(fo);
@@ -219,7 +225,7 @@ void pretraga_po_mbr(int mbr)
                 for (int j = 0; j < F1; j++) {
 
                     if (blok[j].status == 0 && blok[j].mbr == mbr) {
-                        printf("DN=%.2f | blok %ld poz %d\n",
+                        printf("Dnevnica=%.2f | blok %ld poz %d\n",
                                blok[j].uk_dnevnice,
                                ib.slogovi[i].adresa_bloka / sizeof(Agregat),
                                j);
@@ -408,7 +414,7 @@ void pretraga_sa_overflow(int mbr)
             if (blok[i].status == 1) continue;
 
             if (blok[i].mbr == mbr) {
-                printf("Nadjen u primarnoj DN=%.2f\n", blok[i].uk_dnevnice);
+                printf("Nadjen u primarnoj Dnevnica=%.2f\n", blok[i].uk_dnevnice);
                 fclose(fd); fclose(fo);
                 return;
             }
@@ -422,7 +428,7 @@ void pretraga_sa_overflow(int mbr)
                 read_overflow(fo, next, &temp);
 
                 if (temp.mbr == mbr) {
-                    printf("Nadjen u OVERFLOW DN=%.2f\n", temp.uk_dnevnice);
+                    printf("Nadjen u OVERFLOW Dnevnica=%.2f\n", temp.uk_dnevnice);
                     fclose(fd); fclose(fo);
                     return;
                 }
@@ -504,7 +510,7 @@ void debug_ispis()
         printf("Blok %d:\n", b);
 
         for (int i = 0; i < F1; i++) {
-            printf(" [%d] MBR=%d DN=%.2f NEXT=%ld STATUS=%d\n",
+            printf(" [%d] MBR=%d Dnevnica=%.2f NEXT=%ld STATUS=%d\n",
                    i,
                    blok[i].mbr,
                    blok[i].uk_dnevnice,
@@ -548,7 +554,7 @@ void update_agregat(Agregat novi)
                 fseek(f, -(long)sizeof(Agregat)*F1, SEEK_CUR);
                 fwrite(blok, sizeof(Agregat), F1, f);
 
-                upisi_log(novi.mbr, "UPDATE_AGREGAT");
+                upisi_log(novi.mbr, "UPDATE_AGREGAT",1);
 
                 fclose(f);
                 return;
@@ -578,7 +584,7 @@ void azuriraj_agregat_isplata(Isplata i)
                 fseek(f, -(long)sizeof(Agregat)*F1, SEEK_CUR);
                 fwrite(blok, sizeof(Agregat), F1, f);
 
-                upisi_log(i.mbr, "UPDATE_ISPLATA");
+                upisi_log(i.mbr, "UPDATE_ISPLATA",1);
 
                 fclose(f);
                 return;

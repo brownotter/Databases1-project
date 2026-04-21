@@ -2,20 +2,42 @@
 #include <stdio.h>
 #include <string.h>
 
-static int global_id = 1;
-static int brojac_pristupa = 0;
+static int ucitaj_poslednji_id()
+{
+    FILE *f = fopen(LOG_FILE, "rb");
+    if (!f) return 0;
 
-void upisi_log(int mbr, const char* operacija)
+    LogSlog l;
+    int max = 0;
+
+    while (fread(&l, sizeof(LogSlog), 1, f)) {
+        if (l.id > max)
+            max = l.id;
+    }
+
+    fclose(f);
+    return max;
+}
+
+void upisi_log(int mbr, const char* operacija, int pristupi)
 {
     FILE *f = fopen(LOG_FILE, "ab");
     if (!f) return;
+
+    static int global_id = 0;
+
+    if (global_id == 0)
+        global_id = ucitaj_poslednji_id() + 1;
 
     LogSlog l;
 
     l.id = global_id++;
     l.mbr = mbr;
-    strcpy(l.operacija, operacija);
-    l.broj_pristupa = 1;   // svaki poziv = 1 pristup
+
+    strncpy(l.operacija, operacija, sizeof(l.operacija));
+    l.operacija[sizeof(l.operacija) - 1] = '\0';
+
+    l.broj_pristupa = pristupi;
 
     fwrite(&l, sizeof(LogSlog), 1, f);
     fclose(f);
@@ -54,11 +76,11 @@ void prosecni_pristupi()
         cnt++;
     }
 
+    fclose(f);
+
     if (cnt == 0) return;
 
     printf("Prosecni broj pristupa: %.2f\n", (float)sum / cnt);
-
-    fclose(f);
 }
 
 void proveri_reorganizaciju()
@@ -71,7 +93,6 @@ void proveri_reorganizaciju()
 
     while (fread(&l, sizeof(LogSlog), 1, f)) {
 
-        /* filtriraj samo RADNIK operacije */
         if (strstr(l.operacija, "RADNIK") != NULL) {
             suma += l.broj_pristupa;
             count++;
@@ -99,8 +120,8 @@ void reorganizuj_datoteku_log()
     FILE *old = fopen(LOG_FILE, "rb");
     if (!old) return;
 
-    FILE *newf = fopen("log_tmp.bin", "wb");
-    if (!newf) {
+    FILE *tmp = fopen("log_tmp.bin", "wb");
+    if (!tmp) {
         fclose(old);
         return;
     }
@@ -108,16 +129,18 @@ void reorganizuj_datoteku_log()
     LogSlog l;
 
     while (fread(&l, sizeof(LogSlog), 1, old)) {
-        // ovde možeš filter (npr. samo RADNIK)
-        fwrite(&l, sizeof(LogSlog), 1, newf);
+
+        // èuvamo sve (možeš filtrirati kasnije)
+        fwrite(&l, sizeof(LogSlog), 1, tmp);
     }
 
     fclose(old);
-    fclose(newf);
+    fclose(tmp);
 
     remove(LOG_FILE);
     rename("log_tmp.bin", LOG_FILE);
 
-    printf("Log reorganizovan bez gubitka podataka\n");
+    printf("Log reorganizovan\n");
 }
+
 
