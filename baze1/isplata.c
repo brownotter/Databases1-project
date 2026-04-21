@@ -14,7 +14,7 @@ void meni_isplata() {
         printf("1. Izaberi naziv fajla\n");
         printf("2. Kreiraj praznu datoteku (f=5)\n");
         printf("3. Unos isplate\n");
-        printf("4. DEBUG ispis svih isplata\n");
+        printf("4. Ispis svih isplata\n");
         printf("0. Nazad\n");
         printf("Izbor: ");
 
@@ -84,6 +84,7 @@ void unos_isplate(const char* filename) {
 
     Isplata nova;
 
+    //unos podataka
     printf("ID isplate: ");
     scanf("%d", &nova.identifikator); ocisti_bafer();
 
@@ -120,7 +121,7 @@ void unos_isplate(const char* filename) {
 
         for (int i = 0; i < FAKTOR_BLOKIRANJA_ISPLATA; i++) {
 
-            //  DUPLIKAT ID
+            //  provera da li postoji uneseni id
             if (blok.slogovi[i].identifikator == nova.identifikator) {
                 printf("ID vec postoji!\n");
                 fclose(f);

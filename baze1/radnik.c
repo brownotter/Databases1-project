@@ -17,7 +17,7 @@ void meni_radnik() {
         printf("3. Unos radnika\n");
         printf("4. Prikaz po MBR\n");
         printf("5. Modifikacija radnika\n");
-        printf("6. DEBUG ispis svih\n");
+        printf("6. Ispis svih radnika\n");
         printf("7. Uslov: BONUS > 2000\n");
         printf("0. Nazad\n");
         printf("Izbor: ");
@@ -92,7 +92,7 @@ void unos_radnika(const char* filename) {
 
     Radnik novi;
 
-    // --- UNOS PODATAKA ---
+    //Unos novog radnika
     printf("Unesite mbr: ");
     scanf("%d", &novi.mbr); ocisti_bafer();
 
@@ -110,7 +110,6 @@ void unos_radnika(const char* filename) {
     printf("Premija: ");
     scanf("%f", &novi.premija); ocisti_bafer();
 
-    // --- RAD SA BLOKOVIMA ---
     BlokRadnik blok;
     int blok_index = 0;
 
@@ -118,14 +117,14 @@ void unos_radnika(const char* filename) {
 
         for (int i = 0; i < FAKTOR_BLOKIRANJA_RADNIK; i++) {
 
-            //  DUPLIKAT
+            // provera da li postoji radnik sa takvim mbr
             if (blok.slogovi[i].mbr == novi.mbr) {
                 printf("Radnik vec postoji!\n");
                 fclose(f);
                 return;
             }
 
-            //  EOF = TU UPISUJEMO
+            //  upis eof
             if (blok.slogovi[i].mbr == -1) {
 
                 blok.slogovi[i] = novi;
@@ -139,7 +138,7 @@ void unos_radnika(const char* filename) {
                 fseek(f, -sizeof(BlokRadnik), SEEK_CUR);
                 fwrite(&blok, sizeof(BlokRadnik), 1, f);
 
-                // ako je bio poslednji u bloku - dodaj novi blok
+                // ako postojii poslednji u bloku, dodaje se novi blok
                 if (i == FAKTOR_BLOKIRANJA_RADNIK - 1) {
                     BlokRadnik novi_blok = {0};
                     novi_blok.slogovi[0].mbr = -1;
