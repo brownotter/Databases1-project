@@ -6,296 +6,222 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <stdio.h>
+#include "agregat.h"
+
 void meni_agregat()
 {
     int izbor;
 
     do {
-        printf("\n===== AGREGIRANI MENI =====\n");
-        printf("1. Formiranje agregirane datoteke\n");
-        printf("2. Prikaz po MBR (dnevnice)\n");
-        printf("3. Prikaz uslova (DN > BONUS)\n");
+        printf("\n--- MENI AGREGAT ---\n");
+        printf("1. Formiraj aktivnu datoteku\n");
+        printf("2. Pretraga po MBR (index + overflow)\n");
+        printf("3. Prikaz DN > BONUS\n");
         printf("4. Logicko brisanje\n");
-        printf("5. Pretraga sa indeksom (ako imas)\n");
+        printf("5. Insert (test overflow)\n");
+        printf("6. Ispis (primarna + overflow)\n");
         printf("0. Nazad\n");
         printf("Izbor: ");
+
         scanf("%d", &izbor);
 
-        switch (izbor) {
-
+        switch (izbor)
+        {
         case 1:
-            formiraj_agregiranu_datoteku(
-                "radnici.bin",
-                "isplate.bin",
-                "agregat.bin"
-            );
+            formiraj_aktivnu_datoteku("radnici.bin", "isplate.bin");
             break;
 
         case 2: {
             int mbr;
             printf("Unesi MBR: ");
             scanf("%d", &mbr);
-            prikaz_dnevnice_po_mbr("agregat.bin", mbr);
+            pretraga_sa_overflow(mbr);
             break;
         }
 
         case 3:
-            prikaz_uslova("agregat.bin");
+            prikaz_uslova();
             break;
 
         case 4: {
             int mbr;
             printf("MBR za brisanje: ");
             scanf("%d", &mbr);
-            logicko_brisanje_agregat("agregat.bin", mbr);
+            logicko_brisanje_overflow(mbr);
             break;
         }
 
         case 5: {
-            int mbr;
-            printf("MBR pretraga: ");
-            scanf("%d", &mbr);
-            pretraga_sa_overflow(fopen("agregat.bin","rb"), mbr);
+            // rucni unos za test overflow
+            Agregat a;
+
+            printf("MBR: "); scanf("%d", &a.mbr);
+            printf("Ime: "); scanf("%s", a.ime);
+            printf("Prezime: "); scanf("%s", a.prezime);
+            printf("Plata: "); scanf("%f", &a.plata);
+            printf("Premija: "); scanf("%f", &a.premija);
+
+            a.uk_bonus = 0;
+            a.uk_dnevnice = 0;
+            a.status = 0;
+            a.next = -1;
+
+            insert_agregat(a);
             break;
         }
 
+        case 6:
+            debug_ispis();
+            break;
+
         case 0:
+            printf("Nazad.\n");
             break;
 
         default:
-            printf("Pogresan izbor.\n");
+            printf("Pogresan izbor!\n");
         }
 
     } while (izbor != 0);
 }
 
-void formiraj_agregiranu_datoteku(
-    const char* radnici_fajl,
-    const char* isplate_fajl,
-    const char* izlazni_fajl)
+void formiraj_aktivnu_datoteku(const char* radnici, const char* isplate)
 {
-    FILE *fr = fopen(radnici_fajl, "rb");
-    FILE *fi = fopen(isplate_fajl, "rb");
-    FILE *fo = fopen(izlazni_fajl, "wb");
+    FILE *fr = fopen(radnici, "rb");
+    FILE *fi = fopen(isplate, "rb");
+    FILE *fo = fopen(DATA_FILE, "wb");
+    FILE *fover = fopen(OVERFLOW_FILE, "wb");
 
-    if (!fr || !fi || !fo) {
-        printf("Greska pri otvaranju fajlova!\n");
+    if (!fr || !fi || !fo || !fover) {
+        printf("Greska!\n");
         return;
     }
 
     Radnik r;
     Isplata i;
 
-    while (fread(&r, sizeof(Radnik), 1, fr) == 1) {
+    Agregat blok[F1];
+    int idx = 0;
 
-        Agregat a;
+    while (fread(&r, sizeof(Radnik), 1, fr)) {
+
+        Agregat a = {0};
+
         a.mbr = r.mbr;
         strcpy(a.ime, r.ime);
         strcpy(a.prezime, r.prezime);
         a.plata = r.plata;
         a.premija = r.premija;
-
-        a.uk_bonus = 0;
-        a.uk_dnevnice = 0;
         a.status = 0;
+        a.next = -1;
 
         rewind(fi);
 
-        while (fread(&i, sizeof(Isplata), 1, fi) == 1) {
+        while (fread(&i, sizeof(Isplata), 1, fi)) {
 
             if (i.mbr == r.mbr) {
 
-                if (strcmp(i.razlog, "BONUS") == 0) {
+                if (strcmp(i.razlog, "BONUS") == 0)
                     a.uk_bonus += i.iznos;
-                }
 
-                if (strcmp(i.razlog, "DNEVNICA") == 0) {
+                if (strcmp(i.razlog, "DNEVNICA") == 0)
                     a.uk_dnevnice += i.iznos;
-                }
             }
         }
 
-        fwrite(&a, sizeof(Agregat), 1, fo);
+        blok[idx++] = a;
+
+        if (idx == F1) {
+            fwrite(blok, sizeof(Agregat), F1, fo);
+            idx = 0;
+        }
     }
+
+    if (idx > 0)
+        fwrite(blok, sizeof(Agregat), idx, fo);
 
     fclose(fr);
     fclose(fi);
     fclose(fo);
+    fclose(fover);
 
-    printf("Agregacija uspesno zavrsena.\n");
+    printf("Primarna zona formirana.\n");
+
+    formiraj_indeks();
 }
 
-void prikaz_dnevnice_po_mbr(const char* filename, int mbr)
+
+void formiraj_indeks()
 {
-    FILE *f = fopen(filename, "rb");
-    if (!f) return;
+    FILE *f = fopen(DATA_FILE, "rb");
+    FILE *fi = fopen(INDEX_FILE, "wb");
+
+    if (!f || !fi) return;
 
     Agregat blok[F1];
-    int b = 0;
-
-    while (fread(blok, sizeof(Agregat), F1, f) == F1) {
-        for (int i = 0; i < F1; i++) {
-
-            if (blok[i].status == 1)
-                continue;
-
-            if (blok[i].mbr == mbr) {
-                printf("DN: %.2f | blok %d poz %d\n",
-                       blok[i].uk_dnevnice, b, i);
-                fclose(f);
-                return;
-            }
-        }
-        b++;
-    }
-
-    printf("Nije pronadjen radnik.\n");
-    fclose(f);
-}
-
-
-// =====================================
-// 3. USLOV DN > BONUS
-// =====================================
-void prikaz_uslova(const char* filename)
-{
-    FILE *f = fopen(filename, "rb");
-    if (!f) return;
-
-    Agregat blok[F1];
-    int b = 0;
-    int found = 0;
-
-    while (fread(blok, sizeof(Agregat), F1, f) == F1) {
-        for (int i = 0; i < F1; i++) {
-
-            if (blok[i].status == 1)
-                continue;
-
-            if (blok[i].uk_dnevnice > blok[i].uk_bonus) {
-                printf("MBR %d | DN %.2f > BONUS %.2f | [%d,%d]\n",
-                       blok[i].mbr,
-                       blok[i].uk_dnevnice,
-                       blok[i].uk_bonus,
-                       b, i);
-
-                found = 1;
-            }
-        }
-        b++;
-    }
-
-    if (!found)
-        printf("Nema rezultata.\n");
-
-    fclose(f);
-}
-
-
-// =====================================
-// 4. LOGICKO BRISANJE
-// =====================================
-void logicko_brisanje_agregat(const char* filename, int mbr)
-{
-    FILE *f = fopen(filename, "rb+");
-    if (!f) return;
-
-    Agregat blok[F1];
-    int b = 0;
-
-    while (fread(blok, sizeof(Agregat), F1, f) == F1) {
-        for (int i = 0; i < F1; i++) {
-
-            if (blok[i].mbr == mbr) {
-                blok[i].status = 1;
-
-                fseek(f, -(long)sizeof(Agregat)*F1, SEEK_CUR);
-                fwrite(blok, sizeof(Agregat), F1, f);
-
-                printf("Obrisan mbr %d\n", mbr);
-                fclose(f);
-                return;
-            }
-        }
-        b++;
-    }
-
-    printf("Nije pronadjen.\n");
-    fclose(f);
-}
-
-void formiraj_indeks(FILE *f)
-{
-    rewind(f);
-
-    Agregat blok[5];
-    IndexBlok iblok = {0};
+    IndexBlok ib = {0};
 
     long adresa = 0;
 
-    while (fread(blok, sizeof(Agregat), 5, f) == 5) {
+    while (fread(blok, sizeof(Agregat), F1, f) == F1) {
 
-        // uzmi MAX mbr iz bloka
-        int max_mbr = blok[0].mbr;
+        int max = blok[0].mbr;
 
-        for (int i = 1; i < 5; i++) {
-            if (blok[i].mbr > max_mbr)
-                max_mbr = blok[i].mbr;
+        for (int i = 1; i < F1; i++)
+            if (blok[i].mbr > max)
+                max = blok[i].mbr;
+
+        ib.slogovi[ib.broj].max_mbr = max;
+        ib.slogovi[ib.broj].adresa_bloka = adresa;
+
+        ib.broj++;
+
+        if (ib.broj == N) {
+            fwrite(&ib, sizeof(IndexBlok), 1, fi);
+            ib.broj = 0;
         }
 
-        // upis u indeks
-        iblok.slogovi[iblok.broj].mbr = max_mbr;
-        iblok.slogovi[iblok.broj].adresa_bloka = adresa;
-
-        iblok.broj++;
-
-        if (iblok.broj == N) {
-            fwrite(&iblok, sizeof(IndexBlok), 1, f);
-            iblok.broj = 0;
-        }
-
-        adresa += sizeof(Agregat) * 5;
+        adresa += sizeof(Agregat) * F1;
     }
 
-    if (iblok.broj > 0)
-        fwrite(&iblok, sizeof(IndexBlok), 1, f);
+    if (ib.broj > 0)
+        fwrite(&ib, sizeof(IndexBlok), 1, fi);
+
+    fclose(f);
+    fclose(fi);
+
+    printf("Indeks formiran.\n");
 }
 
-void pretraga_po_mbr(const char* filename, int mbr)
+void pretraga_po_mbr(int mbr)
 {
-    FILE *f = fopen(filename, "rb");
-    if (!f) return;
+    FILE *fi = fopen(INDEX_FILE, "rb");
+    FILE *fd = fopen(DATA_FILE, "rb");
 
-    // prvo preskoci primarnu zonu (moramo znati koliko blokova ima)
-    fseek(f, 0, SEEK_SET);
+    if (!fi || !fd) return;
 
-    Agregat blok[5];
+    IndexBlok ib;
+    Agregat blok[F1];
 
-    // pronalazak u indeks zoni
-    IndexBlok iblok;
+    while (fread(&ib, sizeof(IndexBlok), 1, fi)) {
 
-    // skok na kraj (u realnom projektu zna se offset, ovde pojednostavljeno)
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
+        for (int i = 0; i < ib.broj; i++) {
 
-    rewind(f);
+            if (mbr <= ib.slogovi[i].max_mbr) {
 
-    while (fread(&iblok, sizeof(IndexBlok), 1, f)) {
+                fseek(fd, ib.slogovi[i].adresa_bloka, SEEK_SET);
+                fread(blok, sizeof(Agregat), F1, fd);
 
-        for (int i = 0; i < iblok.broj; i++) {
+                for (int j = 0; j < F1; j++) {
 
-            if (mbr <= iblok.slogovi[i].mbr) {
-
-                long adr = iblok.slogovi[i].adresa_bloka;
-
-                fseek(f, adr, SEEK_SET);
-                fread(blok, sizeof(Agregat), 5, f);
-
-                for (int j = 0; j < 5; j++) {
-                    if (blok[j].mbr == mbr) {
-                        printf("Nadjeno DN=%.2f BL=%d POZ=%d\n",
-                               blok[j].uk_dnevnice, i, j);
-                        fclose(f);
+                    if (blok[j].status == 0 && blok[j].mbr == mbr) {
+                        printf("DN=%.2f | blok %ld poz %d\n",
+                               blok[j].uk_dnevnice,
+                               ib.slogovi[i].adresa_bloka / sizeof(Agregat),
+                               j);
+                        fclose(fi);
+                        fclose(fd);
                         return;
                     }
                 }
@@ -303,85 +229,300 @@ void pretraga_po_mbr(const char* filename, int mbr)
         }
     }
 
-    printf("Nije pronadjeno.\n");
-    fclose(f);
+    printf("Nije pronadjen.\n");
+
+    fclose(fi);
+    fclose(fd);
 }
 
-void upis_agregat_sa_overflow(FILE *f, Agregat novi)
-{
-    Agregat blok[F1];
-    long pos;
 
-    rewind(f);
+void prikaz_uslova()
+{
+    FILE *f = fopen(DATA_FILE, "rb");
+    if (!f) return;
+
+    Agregat blok[F1];
+    int b = 0, found = 0;
 
     while (fread(blok, sizeof(Agregat), F1, f) == F1) {
 
         for (int i = 0; i < F1; i++) {
 
-            if (blok[i].status == 0 && blok[i].mbr == 0) {
+            if (blok[i].status == 1) continue;
 
-                // slobodno mesto = upis
-                blok[i] = novi;
-                blok[i].next = -1;
+            if (blok[i].uk_dnevnice > blok[i].uk_bonus) {
+                printf("MBR %d [%d,%d]\n", blok[i].mbr, b, i);
+                found = 1;
+            }
+        }
+        b++;
+    }
 
-                fseek(f, -sizeof(Agregat)*F1, SEEK_CUR);
+    if (!found) printf("Nema rezultata.\n");
+
+    fclose(f);
+}
+
+
+void logicko_brisanje(int mbr)
+{
+    FILE *f = fopen(DATA_FILE, "rb+");
+    if (!f) return;
+
+    Agregat blok[F1];
+
+    while (fread(blok, sizeof(Agregat), F1, f) == F1) {
+
+        for (int i = 0; i < F1; i++) {
+
+            if (blok[i].mbr == mbr) {
+
+                blok[i].status = 1;
+
+                fseek(f, -(long)sizeof(Agregat)*F1, SEEK_CUR);
                 fwrite(blok, sizeof(Agregat), F1, f);
 
+                printf("Obrisan.\n");
+                fclose(f);
                 return;
             }
-        }
-    }
-
-    // PREKORAÈENJE
-    fseek(f, 0, SEEK_END);
-    novi.next = -1;
-    fwrite(&novi, sizeof(Agregat), 1, f);
-}
-
-int dodaj_u_lanac(FILE *f, Agregat *glava, Agregat novi)
-{
-    while (glava->next != -1) {
-        fseek(f, glava->next, SEEK_SET);
-        fread(glava, sizeof(Agregat), 1, f);
-    }
-
-    long pos = ftell(f);
-    fwrite(&novi, sizeof(Agregat), 1, f);
-
-    glava->next = pos;
-    return 1;
-}
-
-void pretraga_sa_overflow(FILE *f, int mbr)
-{
-    Agregat a;
-
-    rewind(f);
-
-    while (fread(&a, sizeof(Agregat), 1, f) == 1) {
-
-        if (a.status == 0 && a.mbr == mbr) {
-            printf("DN: %.2f | %.2f\n", a.uk_dnevnice, a.uk_bonus);
-            return;
-        }
-
-        // ako postoji lanac
-        int next = a.next;
-
-        while (next != -1) {
-            fseek(f, next, SEEK_SET);
-            fread(&a, sizeof(Agregat), 1, f);
-
-            if (a.mbr == mbr) {
-                printf("DN: %.2f (OVERFLOW)\n", a.uk_dnevnice);
-                return;
-            }
-
-            next = a.next;
         }
     }
 
     printf("Nije pronadjen.\n");
+    fclose(f);
+}
+
+int read_overflow(FILE *f, long pos, Agregat *a)
+{
+    fseek(f, pos, SEEK_SET);
+    return fread(a, sizeof(Agregat), 1, f);
+}
+
+long write_overflow(FILE *f, Agregat *a)
+{
+    fseek(f, 0, SEEK_END);
+    long pos = ftell(f);
+
+    fwrite(a, sizeof(Agregat), 1, f);
+
+    return pos;
+}
+
+void insert_agregat(Agregat novi)
+{
+    FILE *fd = fopen(DATA_FILE, "rb+");
+    FILE *fo = fopen(OVERFLOW_FILE, "rb+");
+
+    if (!fd || !fo) {
+        printf("Greska fajl\n");
+        return;
+    }
+
+    Agregat blok[F1];
+
+    while (fread(blok, sizeof(Agregat), F1, fd) == F1) {
+
+        // pokušaj ubacivanja u blok
+        for (int i = 0; i < F1; i++) {
+
+            if (blok[i].status == 1 || blok[i].mbr == 0) {
+
+                blok[i] = novi;
+                blok[i].next = -1;
+
+                fseek(fd, -(long)sizeof(Agregat)*F1, SEEK_CUR);
+                fwrite(blok, sizeof(Agregat), F1, fd);
+
+                printf("Upis u primarnu zonu.\n");
+                fclose(fd); fclose(fo);
+                return;
+            }
+        }
+
+        // nema mesta - ide overflow NA PRVI SLOG BLOKA
+        Agregat *glava = &blok[0];
+
+        // ako nema lanac
+        if (glava->next == -1) {
+
+            novi.next = -1;
+            long pos = write_overflow(fo, &novi);
+
+            glava->next = pos;
+
+            fseek(fd, -(long)sizeof(Agregat)*F1, SEEK_CUR);
+            fwrite(blok, sizeof(Agregat), F1, fd);
+
+            printf("Napravljen overflow lanac.\n");
+            fclose(fd); fclose(fo);
+            return;
+        }
+
+        // postoji lanac = idi do kraja
+        long current = glava->next;
+        Agregat temp;
+
+        while (1) {
+            read_overflow(fo, current, &temp);
+
+            if (temp.next == -1) break;
+
+            current = temp.next;
+        }
+
+        novi.next = -1;
+        long pos = write_overflow(fo, &novi);
+
+        temp.next = pos;
+
+        fseek(fo, current, SEEK_SET);
+        fwrite(&temp, sizeof(Agregat), 1, fo);
+
+        printf("Dodat u overflow lanac.\n");
+        fclose(fd); fclose(fo);
+        return;
+    }
+
+    fclose(fd);
+    fclose(fo);
 }
 
 
+void pretraga_sa_overflow(int mbr)
+{
+    FILE *fd = fopen(DATA_FILE, "rb");
+    FILE *fo = fopen(OVERFLOW_FILE, "rb");
+
+    if (!fd || !fo) return;
+
+    Agregat blok[F1];
+
+    while (fread(blok, sizeof(Agregat), F1, fd) == F1) {
+
+        for (int i = 0; i < F1; i++) {
+
+            if (blok[i].status == 1) continue;
+
+            if (blok[i].mbr == mbr) {
+                printf("Nadjen u primarnoj DN=%.2f\n", blok[i].uk_dnevnice);
+                fclose(fd); fclose(fo);
+                return;
+            }
+
+            // overflow lanac
+            long next = blok[i].next;
+            Agregat temp;
+
+            while (next != -1) {
+
+                read_overflow(fo, next, &temp);
+
+                if (temp.mbr == mbr) {
+                    printf("Nadjen u OVERFLOW DN=%.2f\n", temp.uk_dnevnice);
+                    fclose(fd); fclose(fo);
+                    return;
+                }
+
+                next = temp.next;
+            }
+        }
+    }
+
+    printf("Nije pronadjen.\n");
+    fclose(fd);
+    fclose(fo);
+}
+
+void logicko_brisanje_overflow(int mbr)
+{
+    FILE *fd = fopen(DATA_FILE, "rb+");
+    FILE *fo = fopen(OVERFLOW_FILE, "rb+");
+
+    Agregat blok[F1];
+
+    while (fread(blok, sizeof(Agregat), F1, fd) == F1) {
+
+        for (int i = 0; i < F1; i++) {
+
+            if (blok[i].mbr == mbr) {
+                blok[i].status = 1;
+
+                fseek(fd, -(long)sizeof(Agregat)*F1, SEEK_CUR);
+                fwrite(blok, sizeof(Agregat), F1, fd);
+
+                printf("Obrisan u primarnoj.\n");
+                return;
+            }
+
+            long next = blok[i].next;
+            Agregat temp;
+
+            while (next != -1) {
+
+                read_overflow(fo, next, &temp);
+
+                if (temp.mbr == mbr) {
+                    temp.status = 1;
+
+                    fseek(fo, next, SEEK_SET);
+                    fwrite(&temp, sizeof(Agregat), 1, fo);
+
+                    printf("Obrisan u overflow.\n");
+                    return;
+                }
+
+                next = temp.next;
+            }
+        }
+    }
+
+
+}
+
+
+void debug_ispis()
+{
+    FILE *fd = fopen(DATA_FILE, "rb");
+    FILE *fo = fopen(OVERFLOW_FILE, "rb");
+
+    if (!fd || !fo) {
+        printf("Greska pri otvaranju.\n");
+        return;
+    }
+
+    Agregat blok[F1];
+    int b = 0;
+
+    printf("\n--- PRIMARNA ZONA ---\n");
+
+    while (fread(blok, sizeof(Agregat), F1, fd) == F1) {
+
+        printf("Blok %d:\n", b);
+
+        for (int i = 0; i < F1; i++) {
+            printf(" [%d] MBR=%d DN=%.2f NEXT=%ld STATUS=%d\n",
+                   i,
+                   blok[i].mbr,
+                   blok[i].uk_dnevnice,
+                   blok[i].next,
+                   blok[i].status);
+        }
+        b++;
+    }
+
+    printf("\n--- OVERFLOW ZONA ---\n");
+
+    Agregat a;
+    int i = 0;
+
+    rewind(fo);
+
+    while (fread(&a, sizeof(Agregat), 1, fo) == 1) {
+        printf(" [%d] MBR=%d DN=%.2f NEXT=%ld\n",
+               i++, a.mbr, a.uk_dnevnice, a.next);
+    }
+
+    fclose(fd);
+    fclose(fo);
+}

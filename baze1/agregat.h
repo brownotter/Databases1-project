@@ -1,11 +1,13 @@
 #ifndef AGREGAT_H_INCLUDED
 #define AGREGAT_H_INCLUDED
 
-#include <stdio.h>
+#define F1 5
+#define N 2
+#define FZ 1
 
-#define F1 5   // faktor blokiranja primarne zone
-#define N 2    // faktor indeksa (red stabla = 2)
-#define FZ 1   // zona prekoraèenja
+#define DATA_FILE "agregat.bin"
+#define INDEX_FILE "index.bin"
+#define OVERFLOW_FILE "overflow.bin"
 
 typedef struct {
     int mbr;
@@ -15,12 +17,12 @@ typedef struct {
     float premija;
     float uk_bonus;
     float uk_dnevnice;
-    int status; //0=aktivan, 1=obrisan
-    int next;
+    int status;
+    long next; // pokazivac na overflow
 } Agregat;
 
 typedef struct {
-    int mbr;
+    int max_mbr;
     long adresa_bloka;
 } IndexSlog;
 
@@ -29,31 +31,21 @@ typedef struct {
     int broj;
 } IndexBlok;
 
-void formiraj_agregiranu_datoteku(
-    const char* radnici_fajl,
-    const char* isplate_fajl,
-    const char* izlazni_fajl
-);
-
 void meni_agregat();
 
-// prikaz po mbr
-void prikaz_dnevnice_po_mbr(const char* filename, int mbr);
+void debug_ispis();
 
-// uslov: dnevnica > bonus
-void prikaz_uslova(const char* filename);
+void formiraj_aktivnu_datoteku(const char*, const char*);
+void formiraj_indeks();
 
-// logicko brisanje
-void logicko_brisanje_agregat(const char* filename, int mbr);
+void pretraga_po_mbr(int mbr);
+void prikaz_uslova();
 
-void formiraj_indeks(FILE *f);
+void logicko_brisanje(int mbr);
 
-void pretraga_po_mbr(const char* filename, int mbr);
+void insert_agregat(Agregat novi);
+void pretraga_sa_overflow(int mbr);
+void logicko_brisanje_overflow(int mbr);
 
-void upis_agregat_sa_overflow(FILE *f, Agregat novi);
-
-int dodaj_u_lanac(FILE *f, Agregat *glava, Agregat novi);
-
-void pretraga_sa_overflow(FILE *f, int mbr);
 
 #endif // AGREGAT_H_INCLUDED
